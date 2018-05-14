@@ -7,7 +7,8 @@
   xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
   xmlns:tr="http://transpect.io"
   version="1.0" 
-  name="html2xlsx">
+  name="html2xlsx"
+  type="tr:html2xlsx">
   
   <p:documentation>
     Take tables from HTML and patch 
