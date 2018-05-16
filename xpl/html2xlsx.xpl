@@ -23,6 +23,8 @@
   <p:output port="result"/>
   
   <p:option name="template" select="'http://transpect.io/html2xlsx/template/template.xlsx'"/>
+  <p:option name="out-dir-uri" select="''"/>
+  
   <p:option name="debug" select="'yes'"/>
   <p:option name="debug-dir-uri" select="'debug'"/>
   
@@ -234,7 +236,9 @@
     <p:input port="manifest">
       <p:pipe port="result" step="generate-zip-manifest"/>
     </p:input>
-    <p:with-option name="href" select="replace(/c:result/@local-href, '^(.+/.+)\.[a-z]+$', '$1.new.xlsx')">
+    <p:with-option name="href" select="if ($out-dir-uri eq '') 
+                                       then replace(/c:result/@local-href, '^(.+/.+)\.[a-z]+$', '$1.new.xlsx')
+                                       else $out-dir-uri">
       <p:pipe port="result" step="file-uri"/>
     </p:with-option>
   </pxp:zip>
