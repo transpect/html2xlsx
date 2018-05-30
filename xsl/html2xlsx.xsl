@@ -7,46 +7,58 @@
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
   xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
   version="2.0" xpath-default-namespace="http://www.w3.org/1999/xhtml" exclude-result-prefixes="#all">
+  
   <xsl:output method="xml" indent="yes"/>
   
+<!--  <xsl:variable name="template" select="collection()[/*:worksheet]"/>-->
+  <xsl:variable name="html" select="collection()[/*:html]"/>
+  
   <xsl:template match="/">
-    <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
-      xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
-      <sheetPr filterMode="false">
-        <pageSetUpPr fitToPage="false"/>
-      </sheetPr>
-      <dimension ref="A1:I48"/>
-      <sheetViews>
-        <sheetView tabSelected="1" topLeftCell="A1" zoomScaleNormal="100" workbookViewId="0">
-          <selection pane="topLeft" activeCell="A1" activeCellId="0" sqref="A1"/>
-        </sheetView>
-      </sheetViews>
-<!--      <sheetFormatPr baseColWidth="10" defaultColWidth="8.88671875" defaultRowHeight="150" />-->
-      <!--<cols> 
-        <xsl:call-template name="cols"/>
-      </cols>-->
-      <sheetData> 
+    <xsl:copy>
         <xsl:apply-templates/>
-      </sheetData>
-    </worksheet>
+    </xsl:copy>
   </xsl:template>
   
-  <xsl:template match="*:title"/>
+  <xsl:template match="@* | node()">
+    <xsl:copy>
+      <xsl:apply-templates select="@*, node()"/>
+    </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template match="*:sheetData">
+    <xsl:copy>
+      <xsl:apply-templates select="$html"/>
+    </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template match="*:extLst"/>
+  
+  <xsl:template match="*:cols">
+    <xsl:copy>
+<!--      <xsl:message select="."/>-->
+      <xsl:apply-templates select="@*, node()"/>
+    </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template match="*:title| *:meta| *:style"/>
   
    <xsl:template match="*:html| *:body | *:head | *:div |*:a |*:p |*:span[ancestor::*:p] |*:i |*:b |*:sub| *:sup ">
     <xsl:apply-templates/>
   </xsl:template>
   
-  <xsl:template match="*[*:tr]">
-    <xsl:for-each select="*:tr[1]">
+  <xsl:template match="*:br">
+    <xsl:text>&#xa;</xsl:text>
+  </xsl:template>
+  
+  <xsl:template match="*:table">
+    <xsl:for-each select="descendant::*:tr[1]">
       <row r="1" customFormat="true" ht="150" hidden="false" outlineLevel="0" collapsed="false">
         <xsl:apply-templates select="*" >
           <xsl:with-param name="rownum" select="1" />
         </xsl:apply-templates>
       </row>
     </xsl:for-each>
-    <xsl:apply-templates select="*:tr[2]" >
+    <xsl:apply-templates select="descendant::*:tr[2]" >
       <xsl:with-param name="previousRow" select="*:tr[1]" />
       <xsl:with-param name="rownum" select="2" />
     </xsl:apply-templates>
@@ -57,6 +69,7 @@
     <xsl:param name="rownum" as="xs:integer?" />
     <xsl:variable name="currentRow" select="." />
     <row r="{$rownum}" customFormat="true" ht="150" hidden="false" outlineLevel="0" collapsed="false">
+    <!-- get these attributes also from template, style info,  customFormat="1" aso -->
       <xsl:apply-templates select="*" >
         <xsl:with-param name="rownum" select="$rownum" />
       </xsl:apply-templates>
@@ -82,7 +95,16 @@
     <xsl:variable name="colnum">
       <xsl:number value="position()" format="A"/>
     </xsl:variable>
-    <c r="{concat($colnum,$rownum)}" t="s">
+    <c r="{concat($colnum,$rownum)}">
+      <xsl:choose>
+        <xsl:when test="matches(string-join(text(),''),'^(\-|\+)?\d+$') ">
+            <xsl:attribute name="t" select="'n'"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:attribute name="t" select="'s'"/>
+        </xsl:otherwise>
+      </xsl:choose>
+      <xsl:attribute name="s" select="'139'"/>
       <v>
         <xsl:apply-templates/>
       </v>
