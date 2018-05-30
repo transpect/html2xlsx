@@ -51,13 +51,15 @@
     <p:with-option name="overwrite" select="'yes'"/>
   </tr:unzip>
   
- 
+  <p:load name="load-template-worksheet">
+    <p:with-option name="href" select="concat(/*/@xml:base, 'xl/worksheets/sheet1.xml')"/>
+  </p:load>
+  
   <p:sink/>
-  
-  
   
   <p:xslt name="convert-framemaker-tables">
     <p:input port="source">
+      <p:pipe port="result" step="load-template-worksheet"/>
       <p:pipe port="source" step="html2xlsx"/>
     </p:input>
     <p:input port="stylesheet">
@@ -73,7 +75,7 @@
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
   
-<!--  <p:sink/>-->
+  <p:sink/>
   
  <!-- <tr:xslt-mode name="export-relationships" mode="relation"> 
     <p:input port="stylesheet">
@@ -159,9 +161,9 @@
 <!--  <p:sink/>-->
   
   <tr:overwrite-files name="overwrite-worksheet">
-    <!--<p:input port="source">
-      <p:pipe port="result" step="export-relationships"/>
-    </p:input>-->
+    <p:input port="source">
+      <p:pipe port="result" step="convert-framemaker-tables"/>
+    </p:input>
     <p:with-option name="file" select="concat(/*/@xml:base, 'xl/worksheets/sheet1.xml')">
       <p:pipe port="result" step="unzip"/>
     </p:with-option>
