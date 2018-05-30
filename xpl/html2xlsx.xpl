@@ -7,21 +7,24 @@
   xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
   xmlns:tr="http://transpect.io"
   version="1.0" 
-  name="html2xlsx">
+  name="html2xlsx"
+  type="tr:html2xlsx">
   
   <p:documentation>
     Take tables from HTML and patch 
     them into an Excel template file.
     
     Invoke with:
-        $ ./calabash/calabash.sh -i source=test/test.xml xpl/html2xlsx.xpl template=template/template.xlsx
+        $ ./calabash/calabash.sh -i source=test/test.xml xpl/html2xlsx.xpl (template=template/template.xlsx)
   </p:documentation>
   
   <p:input port="source"/>
   
   <p:output port="result"/>
   
-  <p:option name="template" required="true"/>
+  <p:option name="template" select="'http://transpect.io/html2xlsx/template/template.xlsx'"/>
+  <p:option name="out-dir-uri" select="''"/>
+  
   <p:option name="debug" select="'yes'"/>
   <p:option name="debug-dir-uri" select="'debug'"/>
   
@@ -44,9 +47,22 @@
     <p:with-option name="default-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
   
+  <p:sink/>
+  
+  <tr:file-uri name="template-file-uri">
+    <p:with-option name="filename" select="$template"/>
+    <p:input port="catalog">
+      <p:document href="../xmlcatalog/catalog.xml"/>
+    </p:input>
+    <p:input port="resolver">
+      <p:document href="http://transpect.io/xslt-util/xslt-based-catalog-resolver/xsl/resolve-uri-by-catalog.xsl"/>
+    </p:input>
+  </tr:file-uri>
+  
   <tr:unzip name="unzip">
-    <p:with-option name="zip" select="$template"/>
+    <p:with-option name="zip" select="/*/@local-href"/>
     <p:with-option name="dest-dir" select="replace(/c:result/@os-path, '^(.*)/.*', '$1/')">
+      <p:pipe port="result" step="file-uri"/>
     </p:with-option>
     <p:with-option name="overwrite" select="'yes'"/>
   </tr:unzip>
@@ -54,7 +70,7 @@
   <p:load name="load-template-worksheet">
     <p:with-option name="href" select="concat(/*/@xml:base, 'xl/worksheets/sheet1.xml')"/>
   </p:load>
-  
+
   <p:sink/>
   
   <p:xslt name="convert-framemaker-tables">
@@ -223,7 +239,9 @@
     <p:input port="manifest">
       <p:pipe port="result" step="generate-zip-manifest"/>
     </p:input>
-    <p:with-option name="href" select="replace(/c:result/@local-href, '^(.+/.+)\.[a-z]+$', '$1.new.xlsx')">
+    <p:with-option name="href" select="if ($out-dir-uri eq '') 
+                                       then replace(/c:result/@local-href, '^(.+/.+)\.[a-z]+$', '$1.new.xlsx')
+                                       else $out-dir-uri">
       <p:pipe port="result" step="file-uri"/>
     </p:with-option>
   </pxp:zip>

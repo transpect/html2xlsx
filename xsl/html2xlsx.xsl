@@ -44,23 +44,25 @@
   
    <xsl:template match="*:html| *:body | *:head | *:div |*:a |*:p |*:span[ancestor::*:p] |*:i |*:b |*:sub| *:sup ">
     <xsl:apply-templates/>
-  </xsl:template>
+  </xsl:template>  
   
   <xsl:template match="*:br">
     <xsl:text>&#xa;</xsl:text>
   </xsl:template>
   
-  <xsl:template match="*:table">
-    <xsl:for-each select="descendant::*:tr[1]">
-      <row r="1" customFormat="true" ht="150" hidden="false" outlineLevel="0" collapsed="false">
+
+  <xsl:template match="*[*:tr]">
+    <xsl:variable name="start-rownum" select="count(preceding-sibling::*[*:tr]/*:tr) + 1"/>
+    <xsl:for-each select="*:tr[1]">
+      <row r="{$start-rownum}" customFormat="true" ht="150" hidden="false" outlineLevel="0" collapsed="false">
         <xsl:apply-templates select="*" >
-          <xsl:with-param name="rownum" select="1" />
+          <xsl:with-param name="rownum" select="$start-rownum" />
         </xsl:apply-templates>
       </row>
     </xsl:for-each>
     <xsl:apply-templates select="descendant::*:tr[2]" >
       <xsl:with-param name="previousRow" select="*:tr[1]" />
-      <xsl:with-param name="rownum" select="2" />
+      <xsl:with-param name="rownum" select="$start-rownum + 1" />
     </xsl:apply-templates>
   </xsl:template>
   
