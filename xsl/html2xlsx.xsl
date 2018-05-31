@@ -57,23 +57,25 @@
     </xsl:choose>
   </xsl:function>
   
-  <xsl:template match="*:row[position()&lt; count($html//*:tr)]">
+  <xsl:template match="*:row[position()&lt;= count($html//*:tr)]">
     <xsl:copy>
       <xsl:message select="'process html row number ', string(@r), ' of ', count($html//*:tr),' rows'"/>
       <xsl:apply-templates select="@*, node()"/>
     </xsl:copy>
   </xsl:template>
 
-  <xsl:template match="*:row[position() &gt; count($html//*:tr)]"/>
+  <xsl:template match="*:row[position() &gt; count($html//*:tr)+1]"/>
 
-  <xsl:template match="*:c[position() &lt; max($html//*:tr/count(*:td))]">
-      <xsl:variable name="html-tr-position" select="number(replace(@r,'[A-Z]+',''))"/>
-      <xsl:variable name="html-td-position" select="tr:col-to-num(replace(@r,'\d+',''))"/>
+  <xsl:template match="*:c[position() &lt;= max($html//*:tr/count(*:td))]">
+    <xsl:variable name="html-tr-position" select="number(replace(@r,'[A-Z]+',''))"/>
+    <xsl:variable name="html-td-position" select="tr:col-to-num(replace(@r,'\d+',''))"/>
+    <xsl:variable name="html-cell" select="//$html//(*:td|*:th)[parent::*:tr[count(preceding::*:tr)+1=$html-tr-position]]
+                                            [position()=$html-td-position]"/>
+    <xsl:message select="$html-cell"></xsl:message>
     <xsl:copy>
-      <!-- read this styleinfomation from css or class?-->
+      <!-- read this styleinfomation from css or class? -->
       <xsl:choose>
-        <xsl:when test="matches(string-join(//$html//*:td[parent::*:tr[count(preceding-sibling::*:tr)+1=$html-tr-position]]
-                                               [position()=$html-td-position]/text(),''),'^(\-|\+)?\d+$') ">
+        <xsl:when test="matches(string-join($html-cell/text(),''),'^(\-|\+)?\d+$') ">
           <xsl:attribute name="t" select="'n'"/>
         </xsl:when>
         <xsl:otherwise>
@@ -81,11 +83,10 @@
         </xsl:otherwise>
       </xsl:choose>
       <xsl:apply-templates select="@* except @t"/>
-       <!-- <xsl:message select="'row: ',$html-tr-position, 'cell: ', $html-td-position"></xsl:message>-->
+      <!-- <xsl:message select="'row: ',$html-tr-position, 'cell: ', $html-td-position"></xsl:message>-->
       
       <v>
-      <xsl:apply-templates select="//$html//(*:td|*:th)[parent::*:tr[count(preceding::*:tr)+1=$html-tr-position]]
-                                               [position()=$html-td-position]"/>
+        <xsl:apply-templates select="$html-cell"/>
       </v>
     </xsl:copy>
   </xsl:template>
