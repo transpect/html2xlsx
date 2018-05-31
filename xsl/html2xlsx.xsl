@@ -71,7 +71,6 @@
     <xsl:variable name="html-td-position" select="tr:col-to-num(replace(@r,'\d+',''))"/>
     <xsl:variable name="html-cell" select="//$html//(*:td|*:th)[parent::*:tr[count(preceding::*:tr)+1=$html-tr-position]]
                                             [position()=$html-td-position]"/>
-    <xsl:message select="$html-cell"></xsl:message>
     <xsl:copy>
       <!-- read this styleinfomation from css or class? -->
       <xsl:choose>
