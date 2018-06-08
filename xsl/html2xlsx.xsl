@@ -11,12 +11,15 @@
   
   <xsl:output method="xml" indent="yes"/>
   
+  <xsl:param name="th-template-row" as="xs:integer"/>
+  <xsl:param name="td-template-row" as="xs:integer"/>
+  
   <xsl:variable name="template" select="collection()[/*:worksheet]"/>
   <xsl:variable name="html" select="collection()[/*:html]"/>
   
   <xsl:template match="/">
     <xsl:copy>
-        <xsl:apply-templates/>
+      <xsl:apply-templates/>
     </xsl:copy>
   </xsl:template>
   
@@ -26,13 +29,66 @@
     </xsl:copy>
   </xsl:template>
   
-  <!--<xsl:template match="*:sheetData">
+  <xsl:template match="*:sheetData">
     <xsl:copy>
-      <xsl:apply-templates  />
+      <xsl:apply-templates select="$html"/>
     </xsl:copy>
-  </xsl:template>-->
+  </xsl:template>
   
-  <xsl:template match="*:extLst"/>
+  <xsl:template match="*:thead">
+    <xsl:apply-templates select="*:tr">
+      <xsl:with-param name="row-template" as="element()" select="$template//*:row[position() = $th-template-row]" tunnel="yes"/>
+    </xsl:apply-templates>    
+  </xsl:template>
+  
+  <xsl:template match="*:tbody">
+    <xsl:apply-templates select="*:tr">
+      <xsl:with-param name="row-template" as="element()" select="$template//*:row[position() = $td-template-row]" tunnel="yes"/>
+    </xsl:apply-templates>    
+  </xsl:template>
+  
+  <xsl:template match="*:tr">
+    <xsl:param name="row-template" as="element()" tunnel="yes"/>
+    <xsl:variable name="row-num" as="xs:integer" select="count(preceding::*:tr)+1"/>
+    <xsl:element name="row">
+      <xsl:apply-templates select="$row-template/@*"/>
+      <xsl:attribute name="r" select="$row-num"/>
+      <xsl:apply-templates select="node()">
+        <xsl:with-param name="row-num" as="xs:integer" select="$row-num" tunnel="yes"/>
+      </xsl:apply-templates>
+    </xsl:element>
+  </xsl:template>
+  
+  <xsl:template match="*:th | *:td">
+    <xsl:param name="row-template" as="element()" tunnel="yes"/>
+    <xsl:param name="row-num" as="xs:integer" tunnel="yes"/>
+    <xsl:variable name="pos" as="xs:integer" select="count(preceding-sibling::*)+1"/>
+    <xsl:element name="c">
+      <xsl:for-each select="$row-template/*:c[$pos]">
+        <xsl:apply-templates select="@* except @*:r"/>
+        <xsl:attribute name="r" select="replace(@*:r, '^([A-Z]+)([0-9]+)$', concat('$1', $row-num))"/>
+        <xsl:for-each select="*:f">
+          <xsl:copy>
+            <xsl:analyze-string select="." regex="([^A-Z][A-Z]+)([0-9]+)([^0-9])">
+              <xsl:matching-substring>
+                <xsl:value-of select="regex-group(1)"/>                
+                <xsl:value-of select="if (regex-group(2) eq $row-template/@*:r) then $row-num else regex-group(2)"/>
+                <xsl:value-of select="regex-group(3)"/>
+              </xsl:matching-substring>
+              <xsl:non-matching-substring>
+                <xsl:value-of select="."/>
+              </xsl:non-matching-substring>
+            </xsl:analyze-string>
+          </xsl:copy>
+        </xsl:for-each>
+      </xsl:for-each>
+      <xsl:element name="v">
+        <xsl:apply-templates select="node()"/>
+      </xsl:element>
+    </xsl:element>
+  </xsl:template>
+  
+<!--  <xsl:template match="*:extLst"/>-->
   
   <!--<xsl:template match="*:cols">
     <xsl:copy>
@@ -40,10 +96,10 @@
     </xsl:copy>
   </xsl:template>-->
   
-  <xsl:function name="tr:col-to-num">
+  <!--<xsl:function name="tr:col-to-num">
     <xsl:param name="col"/>
     <xsl:variable name="int" select="for $i in (1 to string-length($col)) return (string-to-codepoints(substring($col,$i,1))-64)"/>
-<!--    <xsl:message select="$col, $int[1], count($int)"/>-->
+<!-\-    <xsl:message select="$col, $int[1], count($int)"/>-\->
     <xsl:choose>
       <xsl:when test="count($int)=1">
         <xsl:sequence select="$int[1]"/>
@@ -72,7 +128,7 @@
     <xsl:variable name="html-cell" select="//$html//(*:td|*:th)[parent::*:tr[count(preceding::*:tr)+1=$html-tr-position]]
                                             [position()=$html-td-position]"/>
     <xsl:copy>
-      <!-- read this styleinfomation from css or class? -->
+      <!-\- read this styleinfomation from css or class? -\->
       <xsl:choose>
         <xsl:when test="matches(string-join($html-cell/text(),''),'^(\-|\+)?\d+$') ">
           <xsl:attribute name="t" select="'n'"/>
@@ -82,17 +138,17 @@
         </xsl:otherwise>
       </xsl:choose>
       <xsl:apply-templates select="@* except @t"/>
-      <!-- <xsl:message select="'row: ',$html-tr-position, 'cell: ', $html-td-position"></xsl:message>-->
+      <!-\- <xsl:message select="'row: ',$html-tr-position, 'cell: ', $html-td-position"></xsl:message>-\->
       
       <v>
         <xsl:apply-templates select="$html-cell"/>
       </v>
     </xsl:copy>
-  </xsl:template>
+  </xsl:template>-->
   
   <xsl:template match="*:title| *:meta| *:style"/>
   
-   <xsl:template match="*:html| *:body | *:head | *:div |*:a |*:p |*:span[ancestor::*:p] |*:i |*:b |*:sub| *:sup | *:table| *:td |*:th ">
+  <xsl:template match="*:html| *:body | *:head | *:div |*:a |*:p |*:span[ancestor::*:p] |*:i |*:b |*:sub| *:sup | *:table">
     <xsl:apply-templates/>
   </xsl:template>  
   

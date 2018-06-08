@@ -23,6 +23,9 @@
   <p:output port="result"/>
   
   <p:option name="template" select="'http://transpect.io/html2xlsx/template/template.xlsx'"/>
+  <p:option name="th-template-row" select="1"/>
+  <p:option name="td-template-row" select="2"/>
+  
   <p:option name="out-dir-uri" select="''"/>
   
   <p:option name="debug" select="'yes'"/>
@@ -70,6 +73,11 @@
   <p:load name="load-template-worksheet">
     <p:with-option name="href" select="concat(/*/@xml:base, 'xl/worksheets/sheet1.xml')"/>
   </p:load>
+  
+  <tr:store-debug pipeline-step="unzip/worksheet">
+    <p:with-option name="active" select="$debug"/>
+    <p:with-option name="default-uri" select="$debug-dir-uri"/>
+  </tr:store-debug>
 
   <p:sink/>
   
@@ -84,6 +92,8 @@
     <p:input port="parameters">
       <p:empty/>
     </p:input>
+    <p:with-param name="th-template-row" select="$th-template-row"/>
+    <p:with-param name="td-template-row" select="$td-template-row"/>
   </p:xslt>
   
   <tr:store-debug pipeline-step="excel/worksheet">
