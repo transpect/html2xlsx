@@ -29,6 +29,12 @@
     </xsl:copy>
   </xsl:template>
   
+  <xsl:template match="autoFilter">
+    <xsl:copy>
+      <xsl:attribute name="ref" select="concat('A1:', replace($template//*:row[position() = $th-template-row]/*:c[last()]/@*:r, '[0-9]+$', count($html//*:tr) cast as xs:string))"/>
+    </xsl:copy>
+  </xsl:template>
+  
   <xsl:template match="*:sheetData">
     <xsl:copy>
       <xsl:apply-templates select="$html"/>
@@ -63,10 +69,18 @@
     <xsl:param name="row-template" as="element()" tunnel="yes"/>
     <xsl:param name="row-num" as="xs:integer" tunnel="yes"/>
     <xsl:variable name="pos" as="xs:integer" select="count(preceding-sibling::*)+1"/>
+    <xsl:variable name="text" as="xs:string" select="string-join(descendant::text(),'')"/>
     <xsl:element name="c">
       <xsl:for-each select="$row-template/*:c[$pos]">
-        <xsl:apply-templates select="@* except @*:r"/>
+        <xsl:apply-templates select="@* except (@*:r | @*:t)"/>
         <xsl:attribute name="r" select="replace(@*:r, '^([A-Z]+)([0-9]+)$', concat('$1', $row-num))"/>
+        <xsl:attribute name="t">
+          <xsl:choose>
+            <xsl:when test="matches($text, '^(\-|\+)?\d+$')">n</xsl:when>
+            <xsl:when test="$text eq '-'">str</xsl:when>
+            <xsl:otherwise>s</xsl:otherwise>
+          </xsl:choose>
+        </xsl:attribute>
         <xsl:for-each select="*:f">
           <xsl:copy>
             <xsl:analyze-string select="." regex="([^A-Z][A-Z]+)([0-9]+)([^0-9])">
@@ -82,9 +96,11 @@
           </xsl:copy>
         </xsl:for-each>
       </xsl:for-each>
-      <xsl:element name="v">
-        <xsl:apply-templates select="node()"/>
-      </xsl:element>
+      <xsl:if test="$text[normalize-space()]">
+        <xsl:element name="v">
+          <xsl:apply-templates select="node()"/>
+        </xsl:element>
+      </xsl:if>
     </xsl:element>
   </xsl:template>
   
@@ -120,31 +136,7 @@
     </xsl:copy>
   </xsl:template>
 
-  <xsl:template match="*:row[position() &gt; count($html//*:tr)+1]"/>
-
-  <xsl:template match="*:c[position() &lt;= max($html//*:tr/count(*:td))]">
-    <xsl:variable name="html-tr-position" select="number(replace(@r,'[A-Z]+',''))"/>
-    <xsl:variable name="html-td-position" select="tr:col-to-num(replace(@r,'\d+',''))"/>
-    <xsl:variable name="html-cell" select="//$html//(*:td|*:th)[parent::*:tr[count(preceding::*:tr)+1=$html-tr-position]]
-                                            [position()=$html-td-position]"/>
-    <xsl:copy>
-      <!-\- read this styleinfomation from css or class? -\->
-      <xsl:choose>
-        <xsl:when test="matches(string-join($html-cell/text(),''),'^(\-|\+)?\d+$') ">
-          <xsl:attribute name="t" select="'n'"/>
-        </xsl:when>
-        <xsl:otherwise>
-          <xsl:attribute name="t" select="'s'"/>
-        </xsl:otherwise>
-      </xsl:choose>
-      <xsl:apply-templates select="@* except @t"/>
-      <!-\- <xsl:message select="'row: ',$html-tr-position, 'cell: ', $html-td-position"></xsl:message>-\->
-      
-      <v>
-        <xsl:apply-templates select="$html-cell"/>
-      </v>
-    </xsl:copy>
-  </xsl:template>-->
+  -->
   
   <xsl:template match="*:title| *:meta| *:style"/>
   
