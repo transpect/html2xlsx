@@ -16,6 +16,10 @@
   
   <xsl:variable name="template" select="collection()[/*:worksheet]"/>
   <xsl:variable name="html" select="collection()[/*:html]"/>
+  <!-- copy the first header rows from template, 
+    if you don't want anything to be copied leave empty -->
+  <xsl:variable name="keep-firstrows-from-worksheet" select="''" as="xs:integer"/>
+  <xsl:variable name="use-html-th" select="false()" />
   
   <xsl:template match="/">
     <xsl:copy>
@@ -37,17 +41,29 @@
   
   <xsl:template match="*:sheetData">
     <xsl:copy>
+      <xsl:if test="$keep-firstrows-from-worksheet">
+        <xsl:apply-templates select="$template//*:row[position() &lt;= $keep-firstrows-from-worksheet]"/>
+      </xsl:if>
       <xsl:apply-templates select="$html"/>
     </xsl:copy>
   </xsl:template>
   
   <xsl:template match="*:thead">
-    <xsl:apply-templates select="*:tr">
-      <xsl:with-param name="row-template" as="element()" select="$template//*:row[position() = $th-template-row]" tunnel="yes"/>
-    </xsl:apply-templates>    
+    <xsl:choose>
+      <xsl:when test="$use-html-th">
+        <xsl:message select="'th-template-row: ', $th-template-row "></xsl:message>
+        <xsl:apply-templates select="*:tr">
+          <xsl:with-param name="row-template" as="element()" select="$template//*:row[position() = $th-template-row]" tunnel="yes"/>
+        </xsl:apply-templates>    
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy-of select="$template//*:row[position() = $th-template-row]"/>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:template>
   
   <xsl:template match="*:tbody">
+    <xsl:message select="'td-template-row: ', $td-template-row "></xsl:message>
     <xsl:apply-templates select="*:tr">
       <xsl:with-param name="row-template" as="element()" select="$template//*:row[position() = $td-template-row]" tunnel="yes"/>
     </xsl:apply-templates>    
@@ -55,7 +71,8 @@
   
   <xsl:template match="*:tr">
     <xsl:param name="row-template" as="element()" tunnel="yes"/>
-    <xsl:variable name="row-num" as="xs:integer" select="count(preceding::*:tr)+1"/>
+    <xsl:variable name="row-num" as="xs:integer" select="count(preceding::*:tr)+($keep-firstrows-from-worksheet,1)[1]"/>
+    <xsl:message select="'keep-firstrows-from-worksheet: ',$keep-firstrows-from-worksheet, 'row-num: ', $row-num "></xsl:message>
     <xsl:element name="row">
       <xsl:apply-templates select="$row-template/@*"/>
       <xsl:attribute name="r" select="$row-num"/>
