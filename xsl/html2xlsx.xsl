@@ -18,7 +18,7 @@
   <xsl:variable name="html" select="collection()[/*:html]"/>
   <!-- copy the first header rows from template, 
     if you don't want anything to be copied leave empty -->
-  <xsl:variable name="keep-firstrows-from-worksheet" select="0" as="xs:integer"/>
+  <xsl:param name="keep-firstrows-from-worksheet"  as="xs:integer"/>
   <xsl:variable name="use-html-th" select="false()" />
   
   <xsl:template match="/">
