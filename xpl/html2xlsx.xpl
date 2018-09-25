@@ -95,7 +95,7 @@
     </p:input>
     <p:with-param name="th-template-row" select="$th-template-row"/>
     <p:with-param name="td-template-row" select="$td-template-row"/>
-    <p:with-param name="keep-firstrows-from-worksheet  select="$keep-firstrows-from-worksheet"/>
+    <p:with-param name="keep-firstrows-from-worksheet"  select="$keep-firstrows-from-worksheet"/>
   </p:xslt>
   
   <tr:store-debug pipeline-step="excel/worksheet">
