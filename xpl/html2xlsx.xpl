@@ -79,6 +79,23 @@
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="default-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
+  
+  <p:sink/>
+  
+  <p:identity>
+    <p:input port="source">
+      <p:pipe port="result" step="unzip"/>
+    </p:input>
+  </p:identity>
+  
+  <p:load name="load-template-worksheet_rels">
+    <p:with-option name="href" select="concat(/*/@xml:base, 'xl/worksheets/_rels/sheet1.xml.rels')"/>
+  </p:load>
+  
+  <tr:store-debug pipeline-step="unzip/worksheet_rels">
+    <p:with-option name="active" select="$debug"/>
+    <p:with-option name="default-uri" select="$debug-dir-uri"/>
+  </tr:store-debug>
 
   <p:sink/>
   
@@ -102,16 +119,17 @@
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
-  
-  <p:sink/>
-  
- <!-- <tr:xslt-mode name="export-relationships" mode="relation"> 
+
+  <tr:xslt-mode name="export-relationships" mode="relation">
     <p:input port="stylesheet">
       <p:document href="../xsl/html2xlsx.xsl"/>
     </p:input>
     <p:input port="parameters">
       <p:empty/>
     </p:input>
+    <p:with-param name="keep-firstrows-from-worksheet" select="$keep-firstrows-from-worksheet"/>
+    <p:with-param name="th-template-row" select="$th-template-row"/>
+    <p:with-param name="td-template-row" select="$td-template-row"/>
     <p:with-option name="debug" select="$debug"/>
     <p:with-option name="debug-dir-uri" select="$debug-dir-uri"/>
     <p:with-option name="store-secondary" select="'no'"/>
@@ -119,7 +137,7 @@
     <p:with-option name="adjust-doc-base-uri" select="'no'"/>
   </tr:xslt-mode>
   
-   <tr:store-debug pipeline-step="excel/worksheet2">
+   <tr:store-debug pipeline-step="excel/mode_relation">
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
@@ -133,15 +151,21 @@
     </p:input>
   </p:wrap-sequence>
   
-  <tr:overwrite-files name="overwrite-drawing_rels">
-    <p:with-option name="file" select="concat(/*/@xml:base, 'xl/drawings/_rels/drawing1.xml.rels')">
-      <p:pipe port="result" step="file-list"/>
+   <tr:store-debug pipeline-step="excel/input_rels">
+    <p:with-option name="active" select="$debug"/>
+    <p:with-option name="base-uri" select="$debug-dir-uri"/>
+  </tr:store-debug>
+  
+  <tr:overwrite-files name="overwrite-worksheet_rels">
+    <p:with-option name="file" select="concat(/*/@xml:base, 'xl/worksheets/_rels/sheet1.xml.rels')">
+      <p:pipe port="result" step="unzip"/>
     </p:with-option>
      <p:with-option name="debug" select="$debug"/>
     <p:with-option name="debug-dir-uri" select="$debug-dir-uri"/>
   </tr:overwrite-files>
-
   
+ <!-- 
+
   <tr:xslt-mode name="export-drawings" mode="drawings">
     <p:input port="source">
       <p:pipe port="result" step="convert-framemaker-tables"/>
@@ -188,9 +212,9 @@
  
 <!--  <p:sink/>-->
   
-  <tr:overwrite-files name="overwrite-worksheet">
+  <tr:overwrite-files name="overwrite-worksheet" cx:depends-on="overwrite-worksheet_rels">
     <p:input port="source">
-      <p:pipe port="result" step="convert-framemaker-tables"/>
+      <p:pipe port="result" step="export-relationships"/>
     </p:input>
     <p:with-option name="file" select="concat(/*/@xml:base, 'xl/worksheets/sheet1.xml')">
       <p:pipe port="result" step="unzip"/>
@@ -247,7 +271,7 @@
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
  
-  <pxp:zip>
+  <pxp:zip cx:depends-on="overwrite-worksheet">
     <p:input port="manifest">
       <p:pipe port="result" step="generate-zip-manifest"/>
     </p:input>

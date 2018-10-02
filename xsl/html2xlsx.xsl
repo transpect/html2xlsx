@@ -27,9 +27,9 @@
     </xsl:copy>
   </xsl:template>
   
-  <xsl:template match="@* | node()">
+  <xsl:template match="@* | node()" mode="#default relation">
     <xsl:copy>
-      <xsl:apply-templates select="@*, node()"/>
+      <xsl:apply-templates select="@*, node()" mode="#current"/>
     </xsl:copy>
   </xsl:template>
   
@@ -72,7 +72,7 @@
   <xsl:template match="*:tr">
     <xsl:param name="row-template" as="element()" tunnel="yes"/>
     <xsl:variable name="row-num" as="xs:integer" select="count(preceding::*:tr)+($keep-firstrows-from-worksheet,1)[1]"/>
-    <xsl:message select="'keep-firstrows-from-worksheet: ',$keep-firstrows-from-worksheet, 'row-num: ', $row-num "></xsl:message>
+    <xsl:message select="'keep-firstrows-from-worksheet: ',$keep-firstrows-from-worksheet, 'row-num: ', $row-num"></xsl:message>
     <xsl:element name="row">
       <xsl:apply-templates select="$row-template/@*"/>
       <xsl:attribute name="r" select="$row-num"/>
@@ -165,5 +165,54 @@
     <xsl:text>&#xa;</xsl:text>
   </xsl:template>
   
+  <xsl:template match="*:a[@href]" priority="2">
+    <xsl:variable name="id" select="concat('rId',generate-id())"/>
+    <hyperlink r:id="{$id}" display="{string(.)}">
+      <xsl:element name="Relationship" namespace="http://schemas.openxmlformats.org/package/2006/relationships" exclude-result-prefixes="#all">
+      <xsl:attribute name="Id" select="$id"/>
+      <xsl:attribute name="Type" select="'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink'" />
+      <xsl:attribute name="Target" select="@href" />
+      <xsl:attribute name="TargetMode" select="'External'"/>
+      </xsl:element>
+    </hyperlink>
+  </xsl:template>
+  
+<!--  MODE relation-->
+  
+  <xsl:template match="*:worksheet/*:hyperlinks" mode="relation">
+    <xsl:copy>
+      <xsl:apply-templates select="//*:hyperlink" mode="hyperlinks"/>
+    </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template match="*:hyperlink" mode="relation">
+    <xsl:value-of select="@display"/>
+    <xsl:result-document href="{generate-id()}" exclude-result-prefixes="#all">
+      <xsl:sequence select="*:Relationship"/>
+    </xsl:result-document>
+  </xsl:template>
+  
+  <xsl:template match="*:worksheet/*:hyperlinks" mode="relation">
+    <xsl:copy>
+      <xsl:apply-templates select="@*, node()" mode="relation"/>
+      <xsl:apply-templates select="//*:hyperlink" mode="hyperlinks"/>
+    </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template match="*:worksheet[not(*:hyperlinks)]/*:pageMargins" mode="relation">
+    <hyperlinks>
+      <xsl:apply-templates select="//*:hyperlink" mode="hyperlinks"/>
+    </hyperlinks>
+    <xsl:copy>
+      <xsl:apply-templates select="@*, node()" mode="#current"/>
+    </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template match="*:hyperlink" mode="hyperlinks">
+    <xsl:copy>
+      <xsl:attribute name="ref" select="ancestor::*:c[1]/@r"/>
+      <xsl:apply-templates select="@*" mode="relation"/>
+    </xsl:copy>
+  </xsl:template>
   
 </xsl:stylesheet>
