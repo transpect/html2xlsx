@@ -19,7 +19,7 @@
   <!-- copy the first header rows from template, 
     if you don't want anything to be copied leave empty -->
   <xsl:param name="keep-firstrows-from-worksheet"  as="xs:integer"/>
-  <xsl:variable name="use-html-th" select="false()" />
+  <xsl:param name="use-html-th" select="false()" />
   
   <xsl:template match="/">
     <xsl:copy>
