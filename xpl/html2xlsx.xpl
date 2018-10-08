@@ -72,37 +72,74 @@
     <p:with-option name="overwrite" select="'yes'"/>
   </tr:unzip>
   
-  <p:load name="load-template-worksheet">
-    <p:with-option name="href" select="concat(/*/@xml:base, 'xl/worksheets/sheet1.xml')"/>
-  </p:load>
-  
-  <tr:store-debug pipeline-step="unzip/worksheet">
-    <p:with-option name="active" select="$debug"/>
-    <p:with-option name="default-uri" select="$debug-dir-uri"/>
-  </tr:store-debug>
-  
-  <p:sink/>
-  
-  <p:identity>
-    <p:input port="source">
-      <p:pipe port="result" step="unzip"/>
-    </p:input>
-  </p:identity>
-  
-  <p:load name="load-template-worksheet_rels">
-    <p:with-option name="href" select="concat(/*/@xml:base, 'xl/worksheets/_rels/sheet1.xml.rels')"/>
-  </p:load>
-  
-  <tr:store-debug pipeline-step="unzip/worksheet_rels">
-    <p:with-option name="active" select="$debug"/>
-    <p:with-option name="default-uri" select="$debug-dir-uri"/>
-  </tr:store-debug>
+  <p:group name="load-template-files">
+    <p:output port="worksheet">
+      <p:pipe port="result" step="load-template-worksheet"/>
+    </p:output>
+    <p:output port="relations" sequence="true">
+      <p:pipe port="result" step="load-template-worksheet_rels"/>
+    </p:output>
+    <p:output port="sharedStrings">
+      <p:pipe port="result" step="load-template-shared-strings"/>
+    </p:output>
 
-  <p:sink/>
+    <p:variable name="base" select="/*/@xml:base"/>
+    
+    <p:load name="load-template-worksheet">
+      <p:with-option name="href" select="concat(/*/@xml:base, 'xl/worksheets/sheet1.xml')"/>
+    </p:load>
+
+    <tr:store-debug pipeline-step="unzip/worksheet">
+      <p:with-option name="active" select="$debug"/>
+      <p:with-option name="default-uri" select="$debug-dir-uri"/>
+    </tr:store-debug>
+
+    <p:sink/>
+    
+    <p:try name="load-template-worksheet_rels">
+    <p:group>
+      <p:output port="result" sequence="true"/>
+      <p:load >
+        <p:with-option name="href" select="concat($base, 'xl/worksheets/_rels/sheet1.xml.rels')"/>
+      </p:load>
+    </p:group>
+    <p:catch>
+      <p:output port="result" sequence="true">
+        <p:empty/>
+      </p:output>
+      <p:identity>
+        <p:input port="source">
+          <p:inline>
+            <bogo/>
+          </p:inline>
+        </p:input>
+      </p:identity>
+      <p:sink/>
+    </p:catch>
+  </p:try>
+
+    <tr:store-debug pipeline-step="unzip/worksheet_rels">
+      <p:with-option name="active" select="$debug"/>
+      <p:with-option name="default-uri" select="$debug-dir-uri"/>
+    </tr:store-debug>
+
+    <p:sink/>
+
+    <p:load name="load-template-shared-strings">
+      <p:with-option name="href" select="concat($base, 'xl/sharedStrings.xml')"/>
+    </p:load>
+
+    <tr:store-debug pipeline-step="unzip/shared-strings">
+      <p:with-option name="active" select="$debug"/>
+      <p:with-option name="default-uri" select="$debug-dir-uri"/>
+    </tr:store-debug>
+    <p:sink/>
+
+  </p:group>
   
   <p:xslt name="convert-framemaker-tables">
     <p:input port="source">
-      <p:pipe port="result" step="load-template-worksheet"/>
+      <p:pipe port="worksheet" step="load-template-files"/>
       <p:pipe port="source" step="html2xlsx"/>
     </p:input>
     <p:input port="stylesheet">
@@ -139,19 +176,57 @@
     <p:with-option name="adjust-doc-base-uri" select="'no'"/>
   </tr:xslt-mode>
   
+  
    <tr:store-debug pipeline-step="excel/mode_relation">
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
   
+  <p:xslt name="create-shared-strings" initial-mode="shared-strings" cx:depends-on="export-relationships">
+    <p:input port="source">
+      <p:pipe port="result" step="export-relationships"/>
+      <p:pipe port="sharedStrings" step="load-template-files"/>
+    </p:input>
+    <p:input port="stylesheet">
+      <p:document href="../xsl/html2xlsx.xsl"/>
+    </p:input>
+    <p:input port="parameters">
+      <p:empty/>
+    </p:input>
+    <p:with-param name="th-template-row" select="$th-template-row"/>
+    <p:with-param name="td-template-row" select="$td-template-row"/>
+    <p:with-param name="keep-firstrows-from-worksheet"  select="$keep-firstrows-from-worksheet"/>
+  </p:xslt>
+  
+   <tr:store-debug pipeline-step="excel/subst-strings">
+    <p:with-option name="active" select="$debug"/>
+    <p:with-option name="base-uri" select="$debug-dir-uri"/>
+  </tr:store-debug>
+  <!--
   <p:sink/>
   
-  <p:wrap-sequence wrapper="Relationships">
+  <tr:store-debug pipeline-step="excel/gen-shared-strings">
+    <p:input port="source">
+      <p:pipe port="secondary" step="create-shared-strings"/>
+    </p:input>
+    <p:with-option name="active" select="$debug"/>
+    <p:with-option name="base-uri" select="$debug-dir-uri"/>
+  </tr:store-debug>
+  -->
+  <p:sink/>
+  
+  <p:wrap-sequence wrapper="Relationships" cx:depends-on="create-shared-strings">
     <p:with-option name="wrapper-namespace" select="'http://schemas.openxmlformats.org/package/2006/relationships'"/>
     <p:input port="source">   
       <p:pipe port="secondary" step="export-relationships"/>
     </p:input>
   </p:wrap-sequence>
+  
+  <p:insert position="first-child">
+    <p:input port="insertion" select="/*/*:Relationship">
+      <p:pipe port="relations" step="load-template-files"/>
+    </p:input>
+  </p:insert>
   
    <tr:store-debug pipeline-step="excel/input_rels">
     <p:with-option name="active" select="$debug"/>
@@ -166,6 +241,18 @@
     <p:with-option name="debug-dir-uri" select="$debug-dir-uri"/>
   </tr:overwrite-files>
   
+<!-- for now there were no shared strings created but all shared strings from template convertet to inline strings
+    <tr:overwrite-files name="overwrite-shared-strings">
+    <p:input port="source">
+      <p:pipe port="secondary" step="create-shared-strings"/>
+    </p:input>
+    <p:with-option name="file" select="concat(/*/@xml:base, 'xl/sharedStrings.xml')">
+      <p:pipe port="result" step="unzip"/>
+    </p:with-option>
+     <p:with-option name="debug" select="$debug"/>
+    <p:with-option name="debug-dir-uri" select="$debug-dir-uri"/>
+  </tr:overwrite-files>-->
+
  <!-- 
 
   <tr:xslt-mode name="export-drawings" mode="drawings">
@@ -216,16 +303,17 @@
   
   <tr:overwrite-files name="overwrite-worksheet" cx:depends-on="overwrite-worksheet_rels">
     <p:input port="source">
-      <p:pipe port="result" step="export-relationships"/>
+<!--      <p:pipe port="result" step="export-relationships"/>-->
+      <p:pipe port="result" step="create-shared-strings"/>
     </p:input>
     <p:with-option name="file" select="concat(/*/@xml:base, 'xl/worksheets/sheet1.xml')">
       <p:pipe port="result" step="unzip"/>
     </p:with-option>
-     <p:with-option name="debug" select="$debug"/>
+    <p:with-option name="debug" select="$debug"/>
     <p:with-option name="debug-dir-uri" select="$debug-dir-uri"/>
   </tr:overwrite-files>
   
-  <p:xslt name="generate-zip-manifest">
+  <p:xslt name="generate-zip-manifest" cx:depends-on="overwrite-worksheet">
     <p:input port="source">
       <p:pipe port="result" step="unzip"/>
     </p:input>

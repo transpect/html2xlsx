@@ -9,17 +9,23 @@
   xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
   version="2.0" xpath-default-namespace="http://www.w3.org/1999/xhtml" exclude-result-prefixes="#all">
   
-  <xsl:output method="xml" indent="yes"/>
+  <xsl:output method="xml" indent="yes" standalone="yes"/>
   
   <xsl:param name="th-template-row" as="xs:integer"/>
   <xsl:param name="td-template-row" as="xs:integer"/>
   
   <xsl:variable name="template" select="collection()[/*:worksheet]"/>
   <xsl:variable name="html" select="collection()[/*:html]"/>
+  <xsl:variable name="shared-strings-root" select="collection()[/*:sst]" as="document-node()?"/>
   <!-- copy the first header rows from template, 
     if you don't want anything to be copied leave empty -->
   <xsl:param name="keep-firstrows-from-worksheet"  as="xs:integer"/>
   <xsl:param name="use-html-th" select="false()" />
+  
+  <xsl:variable name="alphabet-sequence" select="('A','B','C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+                                                  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z')"/>
+  
+  <xsl:key name="string-by-si" match="*:si" use="count(preceding-sibling::*:si)"/>
   
   <xsl:template match="/">
     <xsl:copy>
@@ -27,8 +33,8 @@
     </xsl:copy>
   </xsl:template>
   
-  <xsl:template match="@* | node()" mode="#default relation">
-    <xsl:copy>
+  <xsl:template match="@* | node()" mode="#default relation shared-strings subst gen-shared-strings">
+    <xsl:copy inherit-namespaces="no">
       <xsl:apply-templates select="@*, node()" mode="#current"/>
     </xsl:copy>
   </xsl:template>
@@ -92,14 +98,15 @@
         <xsl:apply-templates select="@* except (@*:r | @*:t)"/>
         <xsl:attribute name="r" select="replace(@*:r, '^([A-Z]+)([0-9]+)$', concat('$1', $row-num))"/>
         <xsl:attribute name="t">
+<!--         for now every cell content is regarded as a shared string -->
           <xsl:choose>
-            <xsl:when test="matches($text, '^(\-|\+)?\d+$')">n</xsl:when>
-            <xsl:when test="$text eq '-'">str</xsl:when>
+            <xsl:when test="matches($text, '^[\-|\+\*/:]?\d+$')">n</xsl:when>
+            <xsl:when test="$text eq '-' or *:f" >str</xsl:when>
             <xsl:otherwise>s</xsl:otherwise>
           </xsl:choose>
         </xsl:attribute>
         <xsl:for-each select="*:f">
-          <xsl:copy>
+          <xsl:copy inherit-namespaces="no">
             <xsl:analyze-string select="." regex="([^A-Z][A-Z]+)([0-9]+)([^0-9])">
               <xsl:matching-substring>
                 <xsl:value-of select="regex-group(1)"/>                
@@ -114,14 +121,14 @@
         </xsl:for-each>
       </xsl:for-each>
       <xsl:if test="$text[normalize-space()]">
-        <xsl:element name="v">
+        <xsl:element name="v" inherit-namespaces="no">
           <xsl:apply-templates select="node()"/>
         </xsl:element>
       </xsl:if>
     </xsl:element>
   </xsl:template>
   
-<!--  <xsl:template match="*:extLst"/>-->
+  <xsl:template match="*:extLst|*:dataValidations"/>
   
   <!--<xsl:template match="*:cols">
     <xsl:copy>
@@ -166,40 +173,39 @@
   </xsl:template>
   
   <xsl:template match="*:a[@href]" priority="2">
-    <xsl:variable name="id" select="concat('rId',generate-id())"/>
-    <hyperlink r:id="{$id}" display="{string(.)}">
-      <xsl:element name="Relationship" namespace="http://schemas.openxmlformats.org/package/2006/relationships" exclude-result-prefixes="#all">
-      <xsl:attribute name="Id" select="$id"/>
-      <xsl:attribute name="Type" select="'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink'" />
-      <xsl:attribute name="Target" select="@href" />
-      <xsl:attribute name="TargetMode" select="'External'"/>
-      </xsl:element>
-    </hyperlink>
+    <xsl:variable name="id" select="concat('rId',replace(generate-id(), '[a-z]', ''))"/>
+    <xsl:element name="hyperlink" inherit-namespaces="no">
+      <xsl:attribute name="id" select="$id" namespace="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
+      <xsl:attribute name="display" select="string(.)"></xsl:attribute>
+<!--      <hyperlink r:id="{$id}" display="{string(.)}">-->
+        <xsl:element name="Relationship" namespace="http://schemas.openxmlformats.org/package/2006/relationships" exclude-result-prefixes="#all">
+        <xsl:attribute name="Id" select="$id"/>
+        <xsl:attribute name="Type" select="'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink'" />
+        <xsl:attribute name="Target" select="@href" />
+        <xsl:attribute name="TargetMode" select="'External'"/>
+        </xsl:element>
+      <!--</hyperlink>-->
+    </xsl:element>
   </xsl:template>
   
 <!--  MODE relation-->
   
-  <xsl:template match="*:worksheet/*:hyperlinks" mode="relation">
-    <xsl:copy>
-      <xsl:apply-templates select="//*:hyperlink" mode="hyperlinks"/>
-    </xsl:copy>
-  </xsl:template>
-  
   <xsl:template match="*:hyperlink" mode="relation">
     <xsl:value-of select="@display"/>
-    <xsl:result-document href="{generate-id()}" exclude-result-prefixes="#all">
+    <xsl:result-document href="{generate-id()}">
       <xsl:sequence select="*:Relationship"/>
     </xsl:result-document>
   </xsl:template>
   
   <xsl:template match="*:worksheet/*:hyperlinks" mode="relation">
-    <xsl:copy>
+    <xsl:copy inherit-namespaces="no">
       <xsl:apply-templates select="@*, node()" mode="relation"/>
       <xsl:apply-templates select="//*:hyperlink" mode="hyperlinks"/>
     </xsl:copy>
   </xsl:template>
+  <xsl:template match="*:worksheet/*:hyperlinks" mode="relation"/>
   
-  <xsl:template match="*:worksheet[not(*:hyperlinks)]/*:pageMargins" mode="relation">
+  <xsl:template match="*:worksheet[not(*:hyperlinks) and exists(//*:hyperlink)]/*:pageMargins" mode="relation">
     <hyperlinks>
       <xsl:apply-templates select="//*:hyperlink" mode="hyperlinks"/>
     </hyperlinks>
@@ -209,10 +215,142 @@
   </xsl:template>
   
   <xsl:template match="*:hyperlink" mode="hyperlinks">
-    <xsl:copy>
+    <xsl:copy inherit-namespaces="no">
       <xsl:attribute name="ref" select="ancestor::*:c[1]/@r"/>
       <xsl:apply-templates select="@*" mode="relation"/>
     </xsl:copy>
   </xsl:template>
+  
+<!--  MODE shared-strings-->
+  
+  <xsl:template match="/" mode="shared-strings">
+    <xsl:message select="$shared-strings-root"></xsl:message>
+    <xsl:variable name="resolved-template-strings" as="element()?">
+      <xsl:apply-templates select="*" mode="shared-strings"/>
+    </xsl:variable>
+    <xsl:apply-templates select="$resolved-template-strings" mode="subst"/>
+    <!--<xsl:result-document href="{'bogo.xml'}">
+      <xsl:document>
+        <sst count="{count($resolved-template-strings//*:v)}" uniqueCount="{count($resolved-template-strings//*:v)}" >
+          <xsl:apply-templates select="$resolved-template-strings//*:v" mode="gen-shared-strings"/>
+        </sst>
+      </xsl:document>
+    </xsl:result-document>-->
+  </xsl:template>
+  
+  <xsl:template match="*:row[@r &lt;= $keep-firstrows-from-worksheet and @t = 's']//*:v" mode="shared-strings">
+      <xsl:apply-templates select="key('string-by-si', number(text()), $shared-strings-root)" mode="#current"/>
+  </xsl:template>
+  
+  <xsl:template match="*:si" mode="shared-strings">
+    <is>
+        <xsl:apply-templates select="node()" mode="#current"/>
+    </is>
+  </xsl:template>
+  
+ <!-- <xsl:template match="*:v[*:si]" mode="gen-shared-strings">
+      <xsl:apply-templates select="node()" mode="#current"/>
+  </xsl:template>
+  
+  <xsl:template match="*:v/*:si" mode="gen-shared-strings">
+    <xsl:copy>
+      <xsl:apply-templates select="node()" mode="#current"/>
+    </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template match="*:v[not(*:si)]" mode="gen-shared-strings">
+    <si>
+      <t>
+        <xsl:apply-templates select="node()" mode="#current"/>
+      </t>
+    </si>
+  </xsl:template>-->
+  
+  <xsl:template match="*:c[@t = 's' or not(@t)][*:v]" mode="subst">
+    <xsl:copy>
+      <xsl:apply-templates select="@*" mode="#current"/>
+      <xsl:if test="not(@r)">
+        <xsl:call-template name="gen-r-attr"/>
+      </xsl:if>
+      <xsl:attribute name="t" select="'inlineStr'"/>
+      <xsl:apply-templates select="node()" mode="#current"/>
+    </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template match="*:c[@t = 's' or not(@t)]/*:v" mode="subst">
+      <is>
+        <t>
+          <xsl:apply-templates select="node()" mode="#current"/>
+        </t>
+      </is>
+  </xsl:template>
+  
+  <xsl:template name="compute-col-chars">
+    <xsl:param name="position" as="xs:decimal"/>
+    <xsl:param name="alpha-places" select="1" as="xs:decimal"/>
+    <xsl:param name="last-alpha-char" as="xs:string?">
+    </xsl:param>
+    <xsl:variable name="alpha-pl" select="floor($position div 26)" as="xs:decimal"/>
+    <xsl:variable name="pl" select="if ($position mod 26 = 0 and $position &lt;= 26) then 26 else $position"/>
+    <xsl:choose>
+      <xsl:when test="$position &lt;= 26">
+        <xsl:sequence select="string-join(($last-alpha-char, $alphabet-sequence[$pl]), '')"/>
+      </xsl:when>
+      <xsl:when test="$alpha-pl &lt; 26">
+        <xsl:call-template name="compute-col-chars">
+          <xsl:with-param name="position" select="$position - ($alpha-pl*26)"/>
+          <xsl:with-param name="last-alpha-char" select="string-join(($last-alpha-char,$alphabet-sequence[$alpha-pl]), '')"/>
+        </xsl:call-template>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:call-template name="compute-col-chars">
+          <xsl:with-param name="position" select="$position - ($alpha-pl*26)"/>
+          <xsl:with-param name="last-alpha-char" select="string-join(($last-alpha-char, $alphabet-sequence[$alpha-pl]), '')"/>
+        </xsl:call-template>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+  
+  <xsl:template match="*:c[empty(node())][not(@r)]" mode="subst">
+    <xsl:variable name="position" select="count(preceding-sibling::*:c)+1"/>
+    <xsl:variable name="col_chars">
+      <xsl:call-template name="compute-col-chars">
+        <xsl:with-param name="position" select="$position"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:copy>
+      <xsl:call-template name="gen-r-attr"/>
+    </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template match="*:c[empty(node())]/@t" priority="3" mode="subst"/>
+  
+  <xsl:template match="*:c/@t[. = 's']" priority="2" mode="subst">
+    <xsl:attribute name="t" select="'inlineStr'"/>
+  </xsl:template>
+  
+  <xsl:template match="*:c/@s" mode="subst"/>
+  
+  <xsl:template match="*:hyperlink" mode="subst">
+    <xsl:copy inherit-namespaces="no">
+      <xsl:apply-templates select="@*,node()" mode="#current"/>
+    </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template name="gen-r-attr">
+    <xsl:variable name="count_sibs" select="count(preceding-sibling::*:c)+1"/>
+    <xsl:variable name="col_char">
+      <xsl:call-template name="compute-col-chars">
+        <xsl:with-param name="position" select="$count_sibs"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:attribute name="r" select="concat($col_char, ../@r)"/>
+  </xsl:template>
+  
+  <!--<xsl:template match="row[@r &lt;= $keep-firstrows-from-worksheet]//v" mode="shared-strings">
+    <xs:copy>
+      <xsl:apply-templates select="key('string-by-v', ., $shared-strings-root)" mode="#current"/>
+    </xs:copy>
+  </xsl:template>-->
   
 </xsl:stylesheet>
