@@ -20,8 +20,9 @@
   <!-- copy the first header rows from template, 
     if you don't want anything to be copied leave empty -->
   <xsl:param name="keep-firstrows-from-worksheet"  as="xs:integer"/>
-  <xsl:param name="use-html-th" select="false()" />
+  <xsl:param name="use-html-th" select="'no'"/>
   
+  <xsl:variable name="is-html-th-used" select="$use-html-th = 'yes'" as="xs:boolean"/>
   <xsl:variable name="alphabet-sequence" select="('A','B','C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
                                                   'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z')"/>
   
@@ -47,7 +48,7 @@
   
   <xsl:template match="*:sheetData">
     <xsl:copy>
-      <xsl:if test="$keep-firstrows-from-worksheet">
+      <xsl:if test="$keep-firstrows-from-worksheet &gt; 0">
         <xsl:apply-templates select="$template//*:row[position() &lt;= $keep-firstrows-from-worksheet]"/>
       </xsl:if>
       <xsl:apply-templates select="$html"/>
@@ -56,7 +57,7 @@
   
   <xsl:template match="*:thead">
     <xsl:choose>
-      <xsl:when test="$use-html-th">
+      <xsl:when test="$is-html-th-used">
         <xsl:message select="'th-template-row: ', $th-template-row "></xsl:message>
         <xsl:apply-templates select="*:tr">
           <xsl:with-param name="row-template" as="element()" select="$template//*:row[position() = $th-template-row]" tunnel="yes"/>
@@ -76,8 +77,8 @@
   </xsl:template>
   
   <xsl:template match="*:tr">
-    <xsl:param name="row-template" as="element()" tunnel="yes"/>
-    <xsl:variable name="row-num" as="xs:integer" select="count(preceding::*:tr)+($keep-firstrows-from-worksheet,1)[1]"/>
+    <xsl:param name="row-template" as="element()?" tunnel="yes"/>
+    <xsl:variable name="row-num" as="xs:integer" select="count(preceding::*:tr)+$keep-firstrows-from-worksheet+1"/>
     <xsl:message select="'keep-firstrows-from-worksheet: ',$keep-firstrows-from-worksheet, 'row-num: ', $row-num"></xsl:message>
     <xsl:element name="row">
       <xsl:apply-templates select="$row-template/@*"/>
@@ -98,7 +99,6 @@
         <xsl:apply-templates select="@* except (@*:r | @*:t)"/>
         <xsl:attribute name="r" select="replace(@*:r, '^([A-Z]+)([0-9]+)$', concat('$1', $row-num))"/>
         <xsl:attribute name="t">
-<!--         for now every cell content is regarded as a shared string -->
           <xsl:choose>
             <xsl:when test="matches($text, '^[\-|\+\*/:]?\d+$')">n</xsl:when>
             <xsl:when test="$text eq '-' or *:f" >str</xsl:when>
@@ -238,7 +238,7 @@
     </xsl:result-document>-->
   </xsl:template>
   
-  <xsl:template match="*:row[@r &lt;= $keep-firstrows-from-worksheet and @t = 's']//*:v" mode="shared-strings">
+  <xsl:template match="*:row[@r &lt;= $keep-firstrows-from-worksheet][*:c[@t = 's']]//*:v" mode="shared-strings">
       <xsl:apply-templates select="key('string-by-si', number(text()), $shared-strings-root)" mode="#current"/>
   </xsl:template>
   
@@ -291,21 +291,15 @@
     <xsl:param name="last-alpha-char" as="xs:string?">
     </xsl:param>
     <xsl:variable name="alpha-pl" select="floor($position div 26)" as="xs:decimal"/>
-    <xsl:variable name="pl" select="if ($position mod 26 = 0 and $position &lt;= 26) then 26 else $position"/>
+    <xsl:variable name="pl" select="if (($position - $alpha-pl*26) = 0) then 26 else $position - ($alpha-pl*26)"/>
     <xsl:choose>
       <xsl:when test="$position &lt;= 26">
         <xsl:sequence select="string-join(($last-alpha-char, $alphabet-sequence[$pl]), '')"/>
       </xsl:when>
-      <xsl:when test="$alpha-pl &lt; 26">
-        <xsl:call-template name="compute-col-chars">
-          <xsl:with-param name="position" select="$position - ($alpha-pl*26)"/>
-          <xsl:with-param name="last-alpha-char" select="string-join(($last-alpha-char,$alphabet-sequence[$alpha-pl]), '')"/>
-        </xsl:call-template>
-      </xsl:when>
       <xsl:otherwise>
         <xsl:call-template name="compute-col-chars">
-          <xsl:with-param name="position" select="$position - ($alpha-pl*26)"/>
-          <xsl:with-param name="last-alpha-char" select="string-join(($last-alpha-char, $alphabet-sequence[$alpha-pl]), '')"/>
+          <xsl:with-param name="position" select="$pl"/>
+          <xsl:with-param name="last-alpha-char" select="string-join(($last-alpha-char,$alphabet-sequence[if ($pl = 26) then ($alpha-pl - 1) else $alpha-pl]), '')"/>
         </xsl:call-template>
       </xsl:otherwise>
     </xsl:choose>

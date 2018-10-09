@@ -26,8 +26,7 @@
   <p:option name="th-template-row" select="1"/>
   <p:option name="td-template-row" select="2"/>
   <p:option name="keep-firstrows-from-worksheet" select="0"/>
-  <p:option name="use-html-th" select="false()"/>
-  
+  <p:option name="use-html-th" select="'no'"/>
   <p:option name="out-dir-uri" select="''"/>
   
   <p:option name="debug" select="'yes'"/>
