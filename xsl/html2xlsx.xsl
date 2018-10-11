@@ -323,7 +323,7 @@
     <xsl:attribute name="t" select="'inlineStr'"/>
   </xsl:template>
   
-  <xsl:template match="*:c/@s" mode="subst"/>
+  <!--<xsl:template match="*:c/@s" mode="subst"/>-->
   
   <xsl:template match="*:hyperlink" mode="subst">
     <xsl:copy inherit-namespaces="no">
