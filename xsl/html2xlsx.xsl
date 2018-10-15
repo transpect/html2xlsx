@@ -11,18 +11,20 @@
   
   <xsl:output method="xml" indent="yes" standalone="yes"/>
   
-  <xsl:param name="th-template-row" as="xs:integer"/>
-  <xsl:param name="td-template-row" as="xs:integer"/>
+  <xsl:param name="th-style-from-row" select="0" as="xs:integer"/>
+  <xsl:param name="td-style-from-row" select="0" as="xs:integer"/>
+  
+  <xsl:param name="keep-rows" select="0"  as="xs:integer"/>
+  <xsl:param name="static-rows"  as="xs:string" select="'no'" />
+  <xsl:param name="use-html-th" select="'yes'"/>
   
   <xsl:variable name="template" select="collection()[/*:worksheet]"/>
   <xsl:variable name="html" select="collection()[/*:html]"/>
   <xsl:variable name="shared-strings-root" select="collection()[/*:sst]" as="document-node()?"/>
-  <!-- copy the first header rows from template, 
-    if you don't want anything to be copied leave empty -->
-  <xsl:param name="keep-firstrows-from-worksheet"  as="xs:integer"/>
-  <xsl:param name="use-html-th" select="'no'"/>
   
   <xsl:variable name="is-html-th-used" select="$use-html-th = 'yes'" as="xs:boolean"/>
+  <xsl:variable name="are-rows-static" select="$static-rows = 'yes'" as="xs:boolean"/>
+  
   <xsl:variable name="alphabet-sequence" select="('A','B','C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
                                                   'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z')"/>
   
@@ -42,55 +44,58 @@
   
   <xsl:template match="autoFilter">
     <xsl:copy>
-      <xsl:attribute name="ref" select="concat('A1:', replace($template//*:row[position() = $th-template-row]/*:c[last()]/@*:r, '[0-9]+$', count($html//*:tr) cast as xs:string))"/>
+      <xsl:attribute name="ref" select="concat('A1:', replace($template//*:row[position() = $th-style-from-row]/*:c[last()]/@*:r, '[0-9]+$', count($html//*:tr) cast as xs:string))"/>
     </xsl:copy>
   </xsl:template>
   
   <xsl:template match="*:sheetData">
     <xsl:copy>
-      <xsl:if test="$keep-firstrows-from-worksheet &gt; 0">
-        <xsl:apply-templates select="$template//*:row[position() &lt;= $keep-firstrows-from-worksheet]"/>
+      <xsl:if test="$keep-rows &gt; 0 and $are-rows-static">
+        <xsl:apply-templates select="$template//*:row[position() &lt;= $keep-rows]"/>
       </xsl:if>
       <xsl:apply-templates select="$html"/>
     </xsl:copy>
   </xsl:template>
   
   <xsl:template match="*:thead">
-    <xsl:choose>
-      <xsl:when test="$is-html-th-used">
-        <xsl:message select="'th-template-row: ', $th-template-row "></xsl:message>
-        <xsl:apply-templates select="*:tr">
-          <xsl:with-param name="row-template" as="element()" select="$template//*:row[position() = $th-template-row]" tunnel="yes"/>
-        </xsl:apply-templates>    
-      </xsl:when>
-      <xsl:otherwise>
-        <xsl:copy-of select="$template//*:row[position() = $th-template-row]"/>
-      </xsl:otherwise>
-    </xsl:choose>
+    <xsl:if test="$is-html-th-used">
+      <xsl:message select="'th-style-from-row: ', $th-style-from-row"/>
+      <xsl:apply-templates select="*:tr"/>
+    </xsl:if>
   </xsl:template>
   
   <xsl:template match="*:tbody">
-    <xsl:message select="'td-template-row: ', $td-template-row "></xsl:message>
-    <xsl:apply-templates select="*:tr">
-      <xsl:with-param name="row-template" as="element()" select="$template//*:row[position() = $td-template-row]" tunnel="yes"/>
-    </xsl:apply-templates>    
+    <xsl:message select="'td-style-from-row: ', $td-style-from-row "/>
+    <xsl:apply-templates select="*:tr"/>
   </xsl:template>
   
   <xsl:template match="*:tr">
-    <xsl:param name="row-template" as="element()?" tunnel="yes"/>
-    <xsl:variable name="row-num" as="xs:integer" select="count(preceding::*:tr)+$keep-firstrows-from-worksheet+1"/>
-    <xsl:message select="'keep-firstrows-from-worksheet: ',$keep-firstrows-from-worksheet, 'row-num: ', $row-num"></xsl:message>
+    <xsl:variable name="tr_count" select="count(if ($is-html-th-used) then preceding::*:tr else preceding::*:tr[not(ancestor::*:thead)])+1" as="xs:integer"/>
+    <xsl:variable name="self" select="."/>
+    <xsl:variable name="row-template" as="element()?">
+      <xsl:choose>
+        <xsl:when test="$td-style-from-row &gt; 0">
+          <xsl:sequence select="$template//*:row[position() = $td-style-from-row]"/>
+        </xsl:when>
+        <xsl:when test="not($are-rows-static) and ($td-style-from-row eq 0)">
+          <xsl:sequence select="$template//*:row[position() = $tr_count]"/>
+        </xsl:when>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:variable name="row-num" as="xs:integer" select="if ($are-rows-static) then $tr_count +$keep-rows else $tr_count"/>
+    <xsl:message select="'keep-rows: ',$keep-rows, 'row-num: ', $row-num"/>
     <xsl:element name="row">
       <xsl:apply-templates select="$row-template/@*"/>
       <xsl:attribute name="r" select="$row-num"/>
       <xsl:apply-templates select="node()">
+        <xsl:with-param name="row-template" select="$row-template" tunnel="yes"/>
         <xsl:with-param name="row-num" as="xs:integer" select="$row-num" tunnel="yes"/>
       </xsl:apply-templates>
     </xsl:element>
   </xsl:template>
   
   <xsl:template match="*:th | *:td">
-    <xsl:param name="row-template" as="element()" tunnel="yes"/>
+    <xsl:param name="row-template" as="element()?" tunnel="yes"/>
     <xsl:param name="row-num" as="xs:integer" tunnel="yes"/>
     <xsl:variable name="pos" as="xs:integer" select="count(preceding-sibling::*)+1"/>
     <xsl:variable name="text" as="xs:string" select="string-join(descendant::text(),'')"/>
@@ -176,15 +181,13 @@
     <xsl:variable name="id" select="concat('rId',replace(generate-id(), '[a-z]', ''))"/>
     <xsl:element name="hyperlink" inherit-namespaces="no">
       <xsl:attribute name="id" select="$id" namespace="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
-      <xsl:attribute name="display" select="string(.)"></xsl:attribute>
-<!--      <hyperlink r:id="{$id}" display="{string(.)}">-->
+      <xsl:attribute name="display" select="string(.)"/>
         <xsl:element name="Relationship" namespace="http://schemas.openxmlformats.org/package/2006/relationships" exclude-result-prefixes="#all">
         <xsl:attribute name="Id" select="$id"/>
         <xsl:attribute name="Type" select="'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink'" />
         <xsl:attribute name="Target" select="@href" />
         <xsl:attribute name="TargetMode" select="'External'"/>
         </xsl:element>
-      <!--</hyperlink>-->
     </xsl:element>
   </xsl:template>
   
@@ -217,6 +220,15 @@
   <xsl:template match="*:hyperlink" mode="hyperlinks">
     <xsl:copy inherit-namespaces="no">
       <xsl:attribute name="ref" select="ancestor::*:c[1]/@r"/>
+      <xsl:if test="not(ancestor::*:c[1]/@r)">
+        <xsl:attribute name="ref">
+          <xsl:variable name="count_sibs" select="count(ancestor::*:c[1]/preceding-sibling::*:c) + 1"/>
+          <xsl:call-template name="compute-col-chars">
+            <xsl:with-param name="position" select="$count_sibs"/>
+          </xsl:call-template>
+          <xsl:value-of select="ancestor::*:row[@r][1]/@r"/>
+        </xsl:attribute>
+      </xsl:if>
       <xsl:apply-templates select="@*" mode="relation"/>
     </xsl:copy>
   </xsl:template>
@@ -224,7 +236,6 @@
 <!--  MODE shared-strings-->
   
   <xsl:template match="/" mode="shared-strings">
-    <xsl:message select="$shared-strings-root"></xsl:message>
     <xsl:variable name="resolved-template-strings" as="element()?">
       <xsl:apply-templates select="*" mode="shared-strings"/>
     </xsl:variable>
@@ -238,7 +249,7 @@
     </xsl:result-document>-->
   </xsl:template>
   
-  <xsl:template match="*:row[@r &lt;= $keep-firstrows-from-worksheet][*:c[@t = 's']]//*:v" mode="shared-strings">
+  <xsl:template match="*:row[@r &lt;= $keep-rows and $are-rows-static][*:c[@t = 's']]//*:v" mode="shared-strings">
       <xsl:apply-templates select="key('string-by-si', number(text()), $shared-strings-root)" mode="#current"/>
   </xsl:template>
   
@@ -341,7 +352,7 @@
     <xsl:attribute name="r" select="concat($col_char, ../@r)"/>
   </xsl:template>
   
-  <!--<xsl:template match="row[@r &lt;= $keep-firstrows-from-worksheet]//v" mode="shared-strings">
+  <!--<xsl:template match="row[@r &lt;= $keep-rows]//v" mode="shared-strings">
     <xs:copy>
       <xsl:apply-templates select="key('string-by-v', ., $shared-strings-root)" mode="#current"/>
     </xs:copy>

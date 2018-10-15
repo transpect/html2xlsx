@@ -23,10 +23,12 @@
   <p:output port="result"/>
   
   <p:option name="template" select="'http://transpect.io/html2xlsx/template/template.xlsx'"/>
-  <p:option name="th-template-row" select="1"/>
-  <p:option name="td-template-row" select="2"/>
-  <p:option name="keep-firstrows-from-worksheet" select="0"/>
-  <p:option name="use-html-th" select="'no'"/>
+  <p:option name="th-style-from-row" select="0"/>
+  <p:option name="td-style-from-row" select="0"/>
+  <p:option name="keep-rows" select="0"/>
+  
+  <p:option name="static-rows" select="'no'"/>
+  <p:option name="use-html-th" select="'yes'"/>
   <p:option name="out-dir-uri" select="''"/>
   
   <p:option name="debug" select="'yes'"/>
@@ -147,9 +149,10 @@
     <p:input port="parameters">
       <p:empty/>
     </p:input>
-    <p:with-param name="th-template-row" select="$th-template-row"/>
-    <p:with-param name="td-template-row" select="$td-template-row"/>
-    <p:with-param name="keep-firstrows-from-worksheet"  select="$keep-firstrows-from-worksheet"/>
+    <p:with-param name="th-style-from-row" select="$th-style-from-row"/>
+    <p:with-param name="td-style-from-row" select="$td-style-from-row"/>
+    <p:with-param name="keep-rows"  select="$keep-rows"/>
+    <p:with-param name="static-rows" select="$static-rows"/>
     <p:with-param name="use-html-th" select="$use-html-th"/>
   </p:xslt>
   
@@ -165,16 +168,17 @@
     <p:input port="parameters">
       <p:empty/>
     </p:input>
-    <p:with-param name="keep-firstrows-from-worksheet" select="$keep-firstrows-from-worksheet"/>
-    <p:with-param name="th-template-row" select="$th-template-row"/>
-    <p:with-param name="td-template-row" select="$td-template-row"/>
+    <p:with-param name="th-style-from-row" select="$th-style-from-row"/>
+    <p:with-param name="td-style-from-row" select="$td-style-from-row"/>
+    <p:with-param name="keep-rows"  select="$keep-rows"/>
+    <p:with-param name="static-rows" select="$static-rows"/>
+    <p:with-param name="use-html-th" select="$use-html-th"/>
     <p:with-option name="debug" select="$debug"/>
     <p:with-option name="debug-dir-uri" select="$debug-dir-uri"/>
     <p:with-option name="store-secondary" select="'no'"/>
     <p:with-option name="fail-on-error" select="'no'"/>
     <p:with-option name="adjust-doc-base-uri" select="'no'"/>
   </tr:xslt-mode>
-  
   
    <tr:store-debug pipeline-step="excel/mode_relation">
     <p:with-option name="active" select="$debug"/>
@@ -192,9 +196,11 @@
     <p:input port="parameters">
       <p:empty/>
     </p:input>
-    <p:with-param name="th-template-row" select="$th-template-row"/>
-    <p:with-param name="td-template-row" select="$td-template-row"/>
-    <p:with-param name="keep-firstrows-from-worksheet"  select="$keep-firstrows-from-worksheet"/>
+<p:with-param name="th-style-from-row" select="$th-style-from-row"/>
+    <p:with-param name="td-style-from-row" select="$td-style-from-row"/>
+    <p:with-param name="keep-rows"  select="$keep-rows"/>
+    <p:with-param name="static-rows" select="$static-rows"/>
+    <p:with-param name="use-html-th" select="$use-html-th"/>
   </p:xslt>
   
    <tr:store-debug pipeline-step="excel/subst-strings">
@@ -370,5 +376,4 @@
       <p:pipe port="result" step="file-uri"/>
     </p:with-option>
   </pxp:zip>
-  
 </p:declare-step>
