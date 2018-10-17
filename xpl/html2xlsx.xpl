@@ -22,6 +22,10 @@
   
   <p:output port="result"/>
   
+  <p:output port="sheet" primary="false">
+    <p:pipe port="result" step="resolve-content"/>
+  </p:output>
+    
   <p:option name="template" select="'http://transpect.io/html2xlsx/template/template.xlsx'"/>
   <p:option name="th-style-from-row" select="0"/>
   <p:option name="td-style-from-row" select="0"/>
@@ -185,7 +189,7 @@
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
   
-  <p:xslt name="create-shared-strings" initial-mode="shared-strings" cx:depends-on="export-relationships">
+  <p:xslt name="resolve-content" initial-mode="shared-strings" cx:depends-on="export-relationships">
     <p:input port="source">
       <p:pipe port="result" step="export-relationships"/>
       <p:pipe port="sharedStrings" step="load-template-files"/>
@@ -196,14 +200,15 @@
     <p:input port="parameters">
       <p:empty/>
     </p:input>
-<p:with-param name="th-style-from-row" select="$th-style-from-row"/>
+
+    <p:with-param name="th-style-from-row" select="$th-style-from-row"/>
     <p:with-param name="td-style-from-row" select="$td-style-from-row"/>
-    <p:with-param name="keep-rows"  select="$keep-rows"/>
+    <p:with-param name="keep-rows" select="$keep-rows"/>
     <p:with-param name="static-rows" select="$static-rows"/>
     <p:with-param name="use-html-th" select="$use-html-th"/>
   </p:xslt>
   
-   <tr:store-debug pipeline-step="excel/subst-strings">
+  <tr:store-debug pipeline-step="excel/resolve_content">
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
@@ -212,7 +217,7 @@
   
   <tr:store-debug pipeline-step="excel/gen-shared-strings">
     <p:input port="source">
-      <p:pipe port="secondary" step="create-shared-strings"/>
+      <p:pipe port="secondary" step="resolve-content"/>
     </p:input>
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
@@ -220,7 +225,7 @@
   -->
   <p:sink/>
   
-  <p:wrap-sequence wrapper="Relationships" cx:depends-on="create-shared-strings">
+  <p:wrap-sequence wrapper="Relationships" cx:depends-on="resolve-content">
     <p:with-option name="wrapper-namespace" select="'http://schemas.openxmlformats.org/package/2006/relationships'"/>
     <p:input port="source">   
       <p:pipe port="secondary" step="export-relationships"/>
@@ -249,7 +254,7 @@
 <!-- for now there were no shared strings created but all shared strings from template convertet to inline strings
     <tr:overwrite-files name="overwrite-shared-strings">
     <p:input port="source">
-      <p:pipe port="secondary" step="create-shared-strings"/>
+      <p:pipe port="secondary" step="resolve-content"/>
     </p:input>
     <p:with-option name="file" select="concat(/*/@xml:base, 'xl/sharedStrings.xml')">
       <p:pipe port="result" step="unzip"/>
@@ -309,7 +314,7 @@
   <tr:overwrite-files name="overwrite-worksheet" cx:depends-on="overwrite-worksheet_rels">
     <p:input port="source">
 <!--      <p:pipe port="result" step="export-relationships"/>-->
-      <p:pipe port="result" step="create-shared-strings"/>
+      <p:pipe port="result" step="resolve-content"/>
     </p:input>
     <p:with-option name="file" select="concat(/*/@xml:base, 'xl/worksheets/sheet1.xml')">
       <p:pipe port="result" step="unzip"/>
@@ -372,8 +377,10 @@
     </p:input>
     <p:with-option name="href" select="if ($out-dir-uri eq '') 
                                        then replace(/c:result/@local-href, '^(.+/.+)\.[a-z]+$', '$1.new.xlsx')
-                                       else $out-dir-uri">
+                                       else concat($out-dir-uri, replace(/c:result/@local-href, '^.+/([^/]+)\.[a-z]+$', '$1.new.xlsx'))">
       <p:pipe port="result" step="file-uri"/>
     </p:with-option>
   </pxp:zip>
+  
+  <p:sink/>
 </p:declare-step>
