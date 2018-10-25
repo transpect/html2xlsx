@@ -34,6 +34,7 @@
   <p:option name="static-rows" select="'no'"/>
   <p:option name="use-html-th" select="'yes'"/>
   <p:option name="out-dir-uri" select="''"/>
+  <p:option name="out-file" select="''"/>
   
   <p:option name="debug" select="'yes'"/>
   <p:option name="debug-dir-uri" select="'debug'"/>
@@ -56,6 +57,29 @@
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="default-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
+  
+  <p:sink/>
+  
+  <p:group name="target-dir-and-name">
+    <p:output port="result" primary="true"/>
+    <p:identity>
+      <p:input port="source">
+        <p:inline>
+          <file/>
+        </p:inline>
+      </p:input>
+    </p:identity>
+    <p:add-attribute match="/*" attribute-name="dir">
+      <p:with-option name="attribute-value" select="($out-dir-uri[. ne ''], replace(/c:result/@local-href, '^(.+)/.+\.[a-z]+$', '$1'))[1]">
+        <p:pipe port="result" step="file-uri"/>
+      </p:with-option>
+    </p:add-attribute>
+    <p:add-attribute match="/*" attribute-name="name">
+      <p:with-option name="attribute-value" select="($out-file[. ne ''], replace(/c:result/@local-href, '^.+/(.+)\.[a-z]+$', '$1'))[1]">
+        <p:pipe port="result" step="file-uri"/>
+      </p:with-option>
+    </p:add-attribute>
+  </p:group>
   
   <p:sink/>
   
@@ -370,15 +394,13 @@
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
   </tr:store-debug>
- 
-  <pxp:zip cx:depends-on="overwrite-worksheet">
+  
+  <pxp:zip cx:depends-on="overwrite-worksheet">    
     <p:input port="manifest">
       <p:pipe port="result" step="generate-zip-manifest"/>
     </p:input>
-    <p:with-option name="href" select="if ($out-dir-uri eq '') 
-                                       then replace(/c:result/@local-href, '^(.+/.+)\.[a-z]+$', '$1.new.xlsx')
-                                       else concat($out-dir-uri, replace(/c:result/@local-href, '^.+/([^/]+)\.[a-z]+$', '$1.new.xlsx'))">
-      <p:pipe port="result" step="file-uri"/>
+    <p:with-option name="href" select="concat(/*/@*:dir, '/', /*/@*:name)">
+      <p:pipe port="result" step="target-dir-and-name"/>
     </p:with-option>
   </pxp:zip>
   
